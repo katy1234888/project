@@ -9,13 +9,13 @@ import plotly.express as px
 st.set_page_config(page_title="Seashells Logistics Dashboard", layout="wide")
 
 # --- NAVIGATION ---
-# Added "Strategic Business Theory" to the sidebar
+# Added "Funnel & Strategic Roadmap" to the sidebar
 page = st.sidebar.selectbox("Navigate", [
     "Home", 
     "Data Upload & Summary", 
     "ML Data Cleaning", 
     "Deep Dive Analytics",
-    "Strategic Business Theory"
+    "Funnel & Strategic Roadmap"
 ])
 
 # --- SESSION STATE ---
@@ -74,68 +74,88 @@ elif page == "Deep Dive Analytics":
             fig = px.pie(nps, names='Category', hole=0.5, title="NPS Distribution")
             st.plotly_chart(fig)
 
-# --- PAGE 5: STRATEGIC BUSINESS THEORY (NEW OPTION) ---
-elif page == "Strategic Business Theory":
-    st.title("📖 Logistics & Strategy Theory")
-    st.write("Detailed theoretical framework for the ITM Skills Case Study.")
+# --- PAGE 5: FUNNEL & STRATEGIC ROADMAP (NEW OPTION) ---
+elif page == "Funnel & Strategic Roadmap":
+    st.title("🎯 End-to-End Funnel & Strategy")
     
-    # Question 1: NPS
-    st.subheader("1. Understanding Net Promoter Score (NPS)")
-    
-    st.write("""
-    The **Net Promoter Score** is a gold-standard metric used by Seashells Logistics to measure customer loyalty. 
-    It is calculated based on the question: *'On a scale of 0-10, how likely are you to recommend our service?'*
-    """)
-    
-    st.code("""
-# Python Formula for NPS
-def calculate_nps(promoters, detractors, total_responses):
-    nps_score = ((promoters - detractors) / total_responses) * 100
-    return nps_score
-    """, language="python")
-    
-    st.info("**Strategy:** During the festive surge, even if promoters increase, a sharper rise in detractors (due to late deliveries) will cause the total NPS to plummet.")
+    if not st.session_state['datasets']:
+        st.warning("Please upload datasets to calculate funnel metrics.")
+    else:
+        dsets = st.session_state['datasets']
+        orders = dsets.get('orders.csv')
+        nps = dsets.get('nps.csv')
+        complaints = dsets.get('complaints.csv')
+        customers = dsets.get('customers.csv')
 
-    # Question 2: RTO & Impact
-    st.subheader("2. Return-To-Origin (RTO) Dynamics")
-    
-    st.write("""
-    **RTO** occurs when a shipment cannot be delivered and is sent back to the warehouse. 
-    In Tier-2 cities like Nagpur, the RTO rate is high due to:
-    - **Address Inaccuracy:** High failure rates in non-digitized addresses.
-    - **Customer Availability:** Multiple failed attempts during working hours.
-    - **Cash on Delivery (COD) Refusals:** Festive impulse buys leading to cancellations at the doorstep.
-    """)
-    
-    # Cost Impact Chart
-    rto_data = pd.DataFrame({
-        'Stage': ['Forward Freight', 'Processing', 'Reverse Freight', 'Repackaging'],
-        'Cost Impact (%)': [40, 10, 35, 15]
-    })
-    fig_rto = px.bar(rto_data, x='Stage', y='Cost Impact (%)', title="Cost Breakdown of an RTO Order")
-    st.plotly_chart(fig_rto)
+        st.subheader("Section D: End-to-End Funnel Analysis")
+        
+        
+        # 1. Delayed Orders -> Complaints %
+        if orders is not None and complaints is not None:
+            orders['is_delayed'] = pd.to_datetime(orders['delivery_date']) > pd.to_datetime(orders['promised_date'])
+            delayed_order_ids = set(orders[orders['is_delayed'] == True]['order_id'])
+            complaint_order_ids = set(complaints['order_id'])
+            
+            delayed_with_complaints = len(delayed_order_ids.intersection(complaint_order_ids))
+            ratio = (delayed_with_complaints / len(delayed_order_ids)) * 100 if len(delayed_order_ids) > 0 else 0
+            
+            st.metric("Delayed Orders resulting in Complaints", f"{ratio:.2f}%")
+            st.write("**Insight:** High correlation indicates that late delivery is the primary trigger for support tickets.")
 
-    # Question 3: SLA & Courier Performance
-    st.subheader("3. Service Level Agreement (SLA) & Delay Rates")
-    
-    st.write("""
-    An **SLA Breach** occurs when the `delivery_date` exceeds the `promised_date`. 
-    In logistics, we track the **Delay Rate** using this logic:
-    """)
-    
-    st.code("""
-# Calculating Delay Rate
-delay_rate = (orders[orders['delivery_date'] > orders['promised_date']].count()) / total_orders
-    """, language="python")
+        # 2. Complaints -> Detractors %
+        if complaints is not None and nps is not None:
+            complaint_orders = set(complaints['order_id'])
+            detractors = set(nps[nps['score'] <= 6]['order_id'])
+            
+            complaints_turned_detractors = len(complaint_orders.intersection(detractors))
+            ratio_det = (complaints_turned_detractors / len(complaint_orders)) * 100 if len(complaint_orders) > 0 else 0
+            
+            st.metric("Complaints turning into Detractors", f"{ratio_det:.2f}%")
+            st.write("**Insight:** This shows the efficiency (or lack thereof) of the complaint resolution process.")
 
-    st.write("""
-    ### Root Causes of the Festive Decline:
-    1. **Hub Congestion:** Tier-2 hubs (Indore/Nagpur) are not designed for 3x volume surges.
-    2. **Last-Mile Exhaustion:** Courier partners like 'QuickShip' showed a 32% SLA breach, indicating they reached their maximum capacity limit.
-    3. **Information Gap:** "Wrong Status" complaints indicate a failure in the real-time API sync between couriers and Seashells Logistics.
-    """)
+        # 3. Impact on Repeat Usage
+        if customers is not None:
+            repeat_rate = (len(customers[customers['segment'] == 'Repeat']) / len(customers)) * 100
+            st.metric("Overall Repeat Customer Rate", f"{repeat_rate:.2f}%")
+            st.image("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=1000", 
+                     caption="Retaining customers through service excellence")
 
-    st.image("https://images.unsplash.com/photo-1594122230689-45899d9e6f69?auto=format&fit=crop&q=80&w=1000", 
-             caption="Optimizing the Supply Chain Journey")
+        st.divider()
 
-    st.success("Theoretical Review Complete. Combine these insights with the 'Deep Dive' charts for the final presentation.")
+        st.subheader("Section E: Business Recommendations")
+        
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown("""
+            #### 🚩 Top 3 Root Causes
+            1. **Tier-2 Infrastructure Gap:** Nagpur and Indore hubs lack the sorting capacity for 3x volume surges.
+            2. **Courier Partner Capacity:** 'QuickShip' has exceeded its operational bandwidth, leading to a 32% SLA breach rate.
+            3. **Communication Latency:** "Wrong Status" complaints suggest a lag in the tracking API between couriers and our internal system.
+            """)
+            
+            st.markdown("""
+            #### ⚡ Quick Wins (Short-term)
+            - **Real-time SMS Alerts:** Proactive delay notifications to reduce "Where is my order?" complaints.
+            - **Incentivize Off-Peak Delivery:** Offer discounts for customers willing to accept 2-day longer windows.
+            - **Temporary Hub Staffing:** Deploy gig-workers to Nagpur/Indore during December spikes.
+            """)
+
+        with c2:
+            st.markdown("""
+            #### 🏗️ Long-term Improvements
+            - **Route Optimization AI:** Implement ML models to predict festive traffic and adjust 'promised_dates' dynamically.
+            - **Own-Fleet Expansion:** Reduce dependency on 3rd party couriers in high-RTO zones.
+            - **Address Validation Engine:** Use geo-coding to reduce RTOs caused by "Address not found" in Tier-2 cities.
+            """)
+            
+            st.markdown("""
+            #### 📊 Suggested KPIs for 2026
+            - **Perfect Order Rate:** (On-time + No Damage + No Complaints).
+            - **RTO Recovery Cost:** Total cost lost per return.
+            - **First-Response-Time (FRT):** Speed of resolving festive complaints.
+            """)
+
+        st.image("https://images.unsplash.com/photo-1494412574737-59a72127818c?auto=format&fit=crop&q=80&w=1000", 
+                 caption="Strategic Growth & Logistics Scaling")
+        
+        st.success("Analysis Complete. Seashells Logistics is ready for the next peak season!")
