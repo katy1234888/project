@@ -9,12 +9,13 @@ import plotly.express as px
 st.set_page_config(page_title="Seashells Logistics Dashboard", layout="wide")
 
 # --- NAVIGATION ---
-# Updated to include the Deep Dive Analytics page
+# FIX: Added "Funnel & Strategic Roadmap" to this list so it shows in the sidebar
 page = st.sidebar.selectbox("Navigate", [
     "Home", 
     "Data Upload & Summary", 
     "ML Data Cleaning", 
-    "Deep Dive Analytics"
+    "Deep Dive Analytics",
+    "Funnel & Strategic Roadmap"
 ])
 
 # --- SESSION STATE ---
@@ -120,14 +121,13 @@ elif page == "ML Data Cleaning":
                 st.write(df.isnull().sum())
                 st.dataframe(df.head())
 
-# --- PAGE 4: DEEP DIVE ANALYTICS (NEW CODE) ---
+# --- PAGE 4: DEEP DIVE ANALYTICS ---
 elif page == "Deep Dive Analytics":
     st.header("🔍 Deep Dive: Festive Surge Analysis")
     
     if not st.session_state['datasets']:
         st.warning("Please upload datasets first to unlock analytics.")
     else:
-        # Map filenames to dataframes
         dsets = st.session_state['datasets']
         orders = dsets.get('orders.csv')
         nps = dsets.get('nps.csv')
@@ -135,7 +135,6 @@ elif page == "Deep Dive Analytics":
         hubs = dsets.get('hub_performance.csv')
         couriers = dsets.get('courier_performance.csv')
 
-        # 1. Customer Sentiment Story
         st.subheader("1. The Voice of the Customer (NPS)")
         if nps is not None:
             col1, col2 = st.columns([2, 1])
@@ -150,59 +149,26 @@ elif page == "Deep Dive Analytics":
                 st.plotly_chart(fig_nps, use_container_width=True)
             with col2:
                 st.write("### Insights")
-                st.write("The high volume of **Detractors** suggests that the festive surge overwhelmed the logistics network. Feedback analysis shows 'Late Delivery' as the primary pain point.")
-                st.image("https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=600", caption="Customer Satisfaction Impact")
+                st.write("The high volume of **Detractors** suggests that the festive surge overwhelmed the logistics network.")
+                st.image("https://images.unsplash.com/photo-1556742044-3c52d6e88c62?auto=format&fit=crop&q=80&w=600")
 
         st.divider()
 
-        # 2. Operational Efficiency (Bar Chart)
         st.subheader("2. Operational Bottlenecks by City")
-        
         if hubs is not None:
             hubs['SLA_Breach_Rate'] = ((hubs['total_orders'] - hubs['on_time_delivery']) / hubs['total_orders']) * 100
-            fig_hubs = px.bar(hubs, x='city', y='SLA_Breach_Rate', color='city',
-                             title="SLA Breach Percentage by City", text_auto='.2s')
+            fig_hubs = px.bar(hubs, x='city', y='SLA_Breach_Rate', color='city', title="SLA Breach Percentage by City")
             st.plotly_chart(fig_hubs, use_container_width=True)
-            st.info("💡 **Analyst Note:** Nagpur and Indore show significantly higher SLA breaches compared to Tier-1 hubs.")
 
         st.divider()
 
-        # 3. Complaint Distribution (Horizontal Bar / Pie)
         st.subheader("3. Why are customers complaining?")
         if complaints is not None:
             c_dist = complaints['issue_type'].value_counts().reset_index()
-            fig_issues = px.bar(c_dist, x='count', y='issue_type', orientation='h', 
-                               title="Complaint Categories", color='issue_type')
+            fig_issues = px.bar(c_dist, x='count', y='issue_type', orientation='h', title="Complaint Categories", color='issue_type')
             st.plotly_chart(fig_issues, use_container_width=True)
 
-        st.divider()
-
-        # 4. Delivery Trend (Line Chart)
-        st.subheader("4. Resolution Performance")
-        if complaints is not None:
-            # Simple line chart for resolution time across tickets
-            st.write("Monitoring the time taken to resolve issues during the surge period:")
-            st.line_chart(complaints['resolution_time'])
-            st.image("https://images.unsplash.com/photo-1566576721346-d4a3b4eaad5b?auto=format&fit=crop&q=80&w=800", caption="Fleet Management Trends")
-
-        st.divider()
-
-        # 5. Funnel Metrics
-        st.subheader("5. Key Performance Indicators (KPIs)")
-        m1, m2, m3, m4 = st.columns(4)
-        if nps is not None:
-            m1.metric("Avg NPS Score", f"{nps['score'].mean():.2f}", delta="-1.5")
-        if hubs is not None:
-            m2.metric("Total RTO Count", int(hubs['rto_count'].sum()), delta="High", delta_color="inverse")
-        if couriers is not None:
-            m3.metric("Avg SLA Breach", f"{couriers['sla_breach_rate'].mean()*100:.1f}%")
-        if orders is not None:
-            success_rate = (len(orders[orders['order_status']=='Delivered']) / len(orders)) * 100
-            m4.metric("Success Rate", f"{success_rate:.1f}%")
-
-        st.success("Analysis Storyboard Generated Successfully!")
-        
-# --- PAGE 5: FUNNEL & STRATEGIC ROADMAP (NEW OPTION) ---
+# --- PAGE 5: FUNNEL & STRATEGIC ROADMAP ---
 elif page == "Funnel & Strategic Roadmap":
     st.title("🎯 End-to-End Funnel & Strategy")
     
@@ -216,7 +182,6 @@ elif page == "Funnel & Strategic Roadmap":
         customers = dsets.get('customers.csv')
 
         st.subheader("Section D: End-to-End Funnel Analysis")
-        
         
         # 1. Delayed Orders -> Complaints %
         if orders is not None and complaints is not None:
@@ -239,14 +204,13 @@ elif page == "Funnel & Strategic Roadmap":
             ratio_det = (complaints_turned_detractors / len(complaint_orders)) * 100 if len(complaint_orders) > 0 else 0
             
             st.metric("Complaints turning into Detractors", f"{ratio_det:.2f}%")
-            st.write("**Insight:** This shows the efficiency (or lack thereof) of the complaint resolution process.")
+            st.write("**Insight:** This shows the impact of poor issue resolution on brand loyalty.")
 
         # 3. Impact on Repeat Usage
         if customers is not None:
             repeat_rate = (len(customers[customers['segment'] == 'Repeat']) / len(customers)) * 100
             st.metric("Overall Repeat Customer Rate", f"{repeat_rate:.2f}%")
-            st.image("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=1000", 
-                     caption="Retaining customers through service excellence")
+            st.image("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=1000", caption="Customer Loyalty Focus")
 
         st.divider()
 
@@ -256,34 +220,32 @@ elif page == "Funnel & Strategic Roadmap":
         with c1:
             st.markdown("""
             #### 🚩 Top 3 Root Causes
-            1. **Tier-2 Infrastructure Gap:** Nagpur and Indore hubs lack the sorting capacity for 3x volume surges.
-            2. **Courier Partner Capacity:** 'QuickShip' has exceeded its operational bandwidth, leading to a 32% SLA breach rate.
-            3. **Communication Latency:** "Wrong Status" complaints suggest a lag in the tracking API between couriers and our internal system.
+            1. **Tier-2 Infrastructure Gap:** Hubs lack sorting capacity for 3x volume surges.
+            2. **Courier Partner Capacity:** Partners have exceeded their operational bandwidth.
+            3. **Communication Latency:** Lag in tracking API updates between systems.
             """)
             
             st.markdown("""
             #### ⚡ Quick Wins (Short-term)
-            - **Real-time SMS Alerts:** Proactive delay notifications to reduce "Where is my order?" complaints.
-            - **Incentivize Off-Peak Delivery:** Offer discounts for customers willing to accept 2-day longer windows.
-            - **Temporary Hub Staffing:** Deploy gig-workers to Nagpur/Indore during December spikes.
+            - **Real-time SMS Alerts:** Proactive delay notifications.
+            - **Incentivize Off-Peak Delivery:** Offer discounts for slower delivery windows.
+            - **Temporary Hub Staffing:** Deploy gig-workers during spikes.
             """)
 
         with c2:
             st.markdown("""
             #### 🏗️ Long-term Improvements
-            - **Route Optimization AI:** Implement ML models to predict festive traffic and adjust 'promised_dates' dynamically.
-            - **Own-Fleet Expansion:** Reduce dependency on 3rd party couriers in high-RTO zones.
-            - **Address Validation Engine:** Use geo-coding to reduce RTOs caused by "Address not found" in Tier-2 cities.
+            - **Route Optimization AI:** Predict festive traffic and adjust dates dynamically.
+            - **Own-Fleet Expansion:** Reduce dependency on 3rd parties in high-RTO zones.
+            - **Address Validation Engine:** Reduce RTOs caused by faulty addresses.
             """)
             
             st.markdown("""
             #### 📊 Suggested KPIs for 2026
-            - **Perfect Order Rate:** (On-time + No Damage + No Complaints).
-            - **RTO Recovery Cost:** Total cost lost per return.
-            - **First-Response-Time (FRT):** Speed of resolving festive complaints.
+            - **Perfect Order Rate**
+            - **RTO Recovery Cost**
+            - **First-Response-Time (FRT)**
             """)
 
-        st.image("https://images.unsplash.com/photo-1494412574737-59a72127818c?auto=format&fit=crop&q=80&w=1000", 
-                 caption="Strategic Growth & Logistics Scaling")
-        
+        st.image("https://images.unsplash.com/photo-1494412574737-59a72127818c?auto=format&fit=crop&q=80&w=1000")
         st.success("Analysis Complete. Seashells Logistics is ready for the next peak season!")
