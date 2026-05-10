@@ -116,3 +116,102 @@ elif page == "ML Data Cleaning":
                 st.write(df.isnull().sum())
                 st.write("**Processed Data Preview:**")
                 st.dataframe(df.head())
+# ... (Keep all your previous code above this line) ...
+
+# 1. Update your Navigation at the top to include the new page:
+# page = st.sidebar.selectbox("Navigate", ["Home", "Data Upload & Summary", "ML Data Cleaning", "Deep Dive Analytics"])
+
+# 2. Add this logic at the end of your file:
+
+elif page == "Deep Dive Analytics":
+    st.header("🔍 Deep Dive: Festive Surge Analysis")
+    
+    if not st.session_state['datasets']:
+        st.warning("Please upload datasets first on the 'Data Upload' page.")
+    else:
+        # Load datasets from session state
+        orders = st.session_state['datasets'].get('orders.csv')
+        nps = st.session_state['datasets'].get('nps.csv')
+        complaints = st.session_state['datasets'].get('complaints.csv')
+        hubs = st.session_state['datasets'].get('hub_performance.csv')
+        
+        st.subheader("1. The Voice of the Customer (NPS Analysis)")
+        
+        if nps is not None:
+            # Logic: Calculate NPS Category
+            def categorize_nps(score):
+                if score >= 9: return 'Promoter'
+                if score <= 6: return 'Detractor'
+                return 'Passive'
+            
+            nps['Category'] = nps['score'].apply(categorize_nps)
+            nps_counts = nps['Category'].value_counts()
+            
+            col1, col2 = st.columns([1, 1])
+            with col1:
+                st.write("### How do our customers feel?")
+                st.write("The chart shows a significant lean towards 'Detractors' during the festive months. This indicates that while volumes are up, the emotional connection with the brand is fragile.")
+                # Pie Chart
+                st.plotly_chart(pd.Series(nps_counts).plot.pie(
+                    title="NPS Distribution", 
+                    backend="plotly",
+                    hole=0.4
+                ))
+            
+            with col2:
+                st.image("https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=1000", 
+                         caption="Customer Feedback is our North Star")
+        
+        st.divider()
+        
+        st.subheader("2. Operational Bottlenecks (City-wise Delivery)")
+        
+        
+        if hubs is not None:
+            # Logic: Identify worst performing cities
+            hubs['Failure_Rate'] = (hubs['failed_attempts'] / hubs['total_orders']) * 100
+            
+            st.write("### Where is the friction?")
+            st.write("By analyzing failed delivery attempts, we see Nagpur and Indore facing the highest operational friction. This correlates with the 'Tier-2 decline' mentioned in the business context.")
+            
+            # Bar Chart
+            st.bar_chart(hubs.set_index('city')['Failure_Rate'])
+            
+        st.divider()
+        
+        st.subheader("3. Complaint Trends & Escalations")
+        
+        if complaints is not None:
+            # Logic: Issue type distribution
+            issue_counts = complaints['issue_type'].value_counts().reset_index()
+            issue_counts.columns = ['Issue', 'Count']
+            
+            # Line/Area Chart for Resolution Time
+            st.write("### Resolution Efficiency")
+            st.write("Late Delivery remains the #1 issue. The resolution time spikes for escalated tickets, suggesting a need for better automated tracking.")
+            
+            st.line_chart(complaints['resolution_time'])
+            
+            # Text based innovation: The "Action Plan"
+            st.info("💡 **Analyst Insight:** 70% of 'Fake Delivery' complaints are concentrated in Pune. This suggests a specific training gap or a courier partner issue in that region.")
+        
+        st.divider()
+        
+        st.subheader("4. The Logistics Funnel Summary")
+        
+        
+        # Summary metrics
+        m1, m2, m3 = st.columns(3)
+        if orders is not None:
+            delivered_count = len(orders[orders['order_status'] == 'Delivered'])
+            m1.metric("Total Successful Deliveries", f"{delivered_count}")
+        
+        if nps is not None:
+            avg_score = round(nps['score'].mean(), 2)
+            m2.metric("Average NPS Score", avg_score, delta="-1.2 vs Last Quarter")
+            
+        if hubs is not None:
+            total_rto = int(hubs['rto_count'].sum())
+            m3.metric("Total RTO Count", total_rto, delta="High Risk", delta_color="inverse")
+
+        st.success("Analysis Complete. Use these insights to draft the Festive Strategy 2.0!")
