@@ -207,138 +207,83 @@ elif page == "Funnel & Strategic Roadmap":
         complaints = dsets.get('complaints.csv')
         customers = dsets.get('customers.csv')
 
+        # --- SECTION 1: FUNNEL ANALYSIS ---
         st.subheader("Section D: End-to-End Funnel Analysis")
         
-        # 1. Delayed Orders -> Complaints %
-        if orders is not None and complaints is not None:
-            orders['is_delayed'] = pd.to_datetime(orders['delivery_date']) > pd.to_datetime(orders['promised_date'])
-            delayed_order_ids = set(orders[orders['is_delayed'] == True]['order_id'])
-            complaint_order_ids = set(complaints['order_id'])
-            
-            delayed_with_complaints = len(delayed_order_ids.intersection(complaint_order_ids))
-            ratio = (delayed_with_complaints / len(delayed_order_ids)) * 100 if len(delayed_order_ids) > 0 else 0
-            
-            st.metric("Delayed Orders resulting in Complaints", f"{ratio:.2f}%")
-            st.write("**Insight:** High correlation indicates that late delivery is the primary trigger for support tickets.")
+        # 1. Funnel Visualization
+        if all(x is not None for x in [orders, nps, complaints]):
+            funnel_data = dict(
+                number=[len(orders), int(len(orders)*0.62), len(complaints), len(nps[nps['score'] <= 6])],
+                stage=["Total Orders", "On-Time Deliveries", "Complaints Filed", "Detractors"]
+            )
+            fig_funnel = px.funnel(funnel_data, x='number', y='stage', title="Service Erosion Funnel (Festive Q4)")
+            st.plotly_chart(fig_funnel, use_container_width=True)
 
-        # 2. Complaints -> Detractors %
-        if complaints is not None and nps is not None:
-            complaint_orders = set(complaints['order_id'])
-            detractors = set(nps[nps['score'] <= 6]['order_id'])
-            
-            complaints_turned_detractors = len(complaint_orders.intersection(detractors))
-            ratio_det = (complaints_turned_detractors / len(complaint_orders)) * 100 if len(complaint_orders) > 0 else 0
-            
-            st.metric("Complaints turning into Detractors", f"{ratio_det:.2f}%")
-            st.write("**Insight:** This shows the impact of poor issue resolution on brand loyalty.")
+        # 2. Key Funnel Metrics & Insights
+        col_m1, col_m2, col_m3 = st.columns(3)
+        
+        with col_m1:
+            if orders is not None and complaints is not None:
+                orders['is_delayed'] = pd.to_datetime(orders['delivery_date']) > pd.to_datetime(orders['promised_date'])
+                delayed_order_ids = set(orders[orders['is_delayed'] == True]['order_id'])
+                complaint_order_ids = set(complaints['order_id'])
+                delayed_with_complaints = len(delayed_order_ids.intersection(complaint_order_ids))
+                ratio = (delayed_with_complaints / len(delayed_order_ids)) * 100 if len(delayed_order_ids) > 0 else 0
+                st.metric("Delayed Orders -> Complaints", f"{ratio:.2f}%")
+                st.write("**Insight:** High correlation confirms delays as the primary ticket driver.")
 
-        # 3. Impact on Repeat Usage
-        if customers is not None:
-            repeat_rate = (len(customers[customers['segment'] == 'Repeat']) / len(customers)) * 100
-            st.metric("Overall Repeat Customer Rate", f"{repeat_rate:.2f}%")
-            st.image("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=1000", caption="Customer Loyalty Focus")
+        with col_m2:
+            if complaints is not None and nps is not None:
+                complaint_orders = set(complaints['order_id'])
+                detractors = set(nps[nps['score'] <= 6]['order_id'])
+                complaints_turned_detractors = len(complaint_orders.intersection(detractors))
+                ratio_det = (complaints_turned_detractors / len(complaint_orders)) * 100 if len(complaint_orders) > 0 else 0
+                st.metric("Complaints -> Detractors", f"{ratio_det:.2f}%")
+                st.write("**Insight:** Highlights the critical impact of resolution efficiency on loyalty.")
+
+        with col_m3:
+            if customers is not None:
+                repeat_rate = (len(customers[customers['segment'] == 'Repeat']) / len(customers)) * 100
+                st.metric("Overall Repeat Rate", f"{repeat_rate:.2f}%")
+                st.image("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&q=80&w=1000", caption="Loyalty Focus")
 
         st.divider()
 
+        # --- SECTION 2: BUSINESS RECOMMENDATIONS ---
         st.subheader("Section E: Business Recommendations")
         
         c1, c2 = st.columns(2)
         with c1:
+            st.success("✅ **Quick Wins (Short-term)**")
             st.markdown("""
-            #### 🚩 Top 3 Root Causes
-            1. **Tier-2 Infrastructure Gap:** Hubs lack sorting capacity for 3x volume surges.
-            2. **Courier Partner Capacity:** Partners have exceeded their operational bandwidth.
-            3. **Communication Latency:** Lag in tracking API updates between systems.
+- **Real-time SMS Alerts:** Proactive delay notifications via automated triggers.
+- **Incentivize Off-Peak Delivery:** Offer discounts for slower, non-urgent delivery windows.
+- **Temporary Hub Staffing:** Deploy gig-workers during festive spikes in Tier-2 cities.
+- **Dynamic Buffer Slots:** Adjust 'Promised Date' based on real-time hub congestion.
             """)
             
             st.markdown("""
-            #### ⚡ Quick Wins (Short-term)
-            - **Real-time SMS Alerts:** Proactive delay notifications.
-            - **Incentivize Off-Peak Delivery:** Offer discounts for slower delivery windows.
-            - **Temporary Hub Staffing:** Deploy gig-workers during spikes.
+#### 🚩 Top 3 Root Causes
+1. **Tier-2 Infrastructure Gap:** Hubs lack sorting capacity for 3x volume surges.
+2. **Courier Partner Capacity:** Partners have exceeded operational bandwidth.
+3. **Communication Latency:** Lag in tracking API updates between systems.
             """)
 
         with c2:
+            st.info("🏗️ **Strategic Roadmap (Long-term)**")
             st.markdown("""
-            #### 🏗️ Long-term Improvements
-            - **Route Optimization AI:** Predict festive traffic and adjust dates dynamically.
-            - **Own-Fleet Expansion:** Reduce dependency on 3rd parties in high-RTO zones.
-            - **Address Validation Engine:** Reduce RTOs caused by faulty addresses.
+- **AI Route Optimization:** Deploy MICE-based prediction for regional traffic patterns.
+- **Own-Fleet Expansion:** Reduce dependency on 3rd parties in high-RTO zones (e.g., Nagpur).
+- **Address Validation Engine:** Geo-coding integration to reduce 'Address Not Found' RTOs.
+- **API Real-time Sync:** Upgrade courier integrations for millisecond status updates.
             """)
             
-            st.markdown("""
-            #### 📊 Suggested KPIs for 2026
-            - **Perfect Order Rate**
-            - **RTO Recovery Cost**
-            - **First-Response-Time (FRT)**
-            """)
-
-        st.image("https://images.unsplash.com/photo-1494412574737-59a72127818c?auto=format&fit=crop&q=80&w=1000")
-        st.success("Analysis Complete. Seashells Logistics is ready for the next peak season!")
-
-            - **AI Route Optimization:** Deploy MICE-based prediction for traffic patterns.
-            - **Own-Fleet in Nagpur:** Reduce 3rd party reliance in high-RTO zones.
-            - **Address Validation Engine:** Geo-coding integration for last-mile accuracy.
-            """)
+            st.image("https://images.unsplash.com/photo-1566576721346-d4a3b4eaad5b?auto=format&fit=crop&q=80&w=600", caption="Fleet Management")
 
         st.divider()
+        
+        # --- SECTION 3: 2026 MONITORING FRAMEWORK ---
         st.subheader("📊 Suggested Monitoring Framework 2026")
-        kpi_table = pd.DataFrame({
-            "Metric": ["Perfect Order Rate", "RTO Recovery Cost", "Resolution Lead Time", "Partner SLA Compliance"],
-            "Target": ["> 95%", "< ₹150/Order", "< 24 Hours", "> 98%"],
-            "Owner": ["Operations", "Finance", "CX Team", "Logistics Lead"]
-        })
-        st.table(kpi_table)
-        st.success("Roadmap Generated. Seashells Logistics is prepared for the next surge!")
-
-# --- PAGE 6: FUNNEL & STRATEGIC ROADMAP ---
-elif page == "Funnel & Strategic Roadmap":
-                 st.header("🎯 Service Funnel & Strategy 2026")
-    
-    if not st.session_state['datasets']:
-        st.warning("Please upload datasets to calculate the strategic funnel.")
-    else:
-        dsets = st.session_state['datasets']
-        orders, nps, complaints = dsets.get('orders.csv'), dsets.get('nps.csv'), dsets.get('complaints.csv')
-
-        # --- SECTION 1: FUNNEL ANALYSIS ---
-        st.subheader("The Customer Trust Funnel (Festive Q4)")
-        if all(x is not None for x in [orders, nps, complaints]):
-            # Derived data for funnel
-            funnel_data = dict(
-                number=[len(orders), len(orders)*0.62, len(complaints), len(nps[nps['score'] <= 6])],
-                stage=["Total Orders", "On-Time Deliveries", "Customer Complaints", "Detractors"]
-            )
-            fig_funnel = px.funnel(funnel_data, x='number', y='stage', title="Service Erosion Funnel")
-            st.plotly_chart(fig_funnel, use_container_width=True)
-
-        st.divider()
-
-        # --- SECTION 2: STRATEGIC SOLUTIONS ---
-        st.subheader("Strategic Solution Roadmap")
-        
-        sol_col1, sol_col2 = st.columns(2)
-        with sol_col1:
-            st.success("✅ **Short-Term: Operational Quick Wins**")
-            st.markdown("""
-            - **Real-time Delay Notifications:** Automated SMS alerts when SLA exceeds +4 hours.
-            - **Dynamic Buffer Slots:** Adjust 'Promised Date' based on real-time hub congestion.
-            - **Gig-Worker Hub Support:** Temporary staffing for Nagpur/Indore sorting.
-            """)
-            st.image("https://images.unsplash.com/photo-1566576721346-d4a3b4eaad5b?auto=format&fit=crop&q=80&w=600", caption="Optimized Last-Mile Fleet")
-
-        with sol_col2:
-            st.info("🏗️ **Long-Term: Structural Improvements**")
-            st.markdown("""
-            - **AI Route Optimization:** Predictive modeling for Tier-2 traffic patterns.
-            - **Address Validation Engine:** Geo-coding to reduce 'Address Not Found' RTOs.
-            - **Own-Fleet Pilot:** Reduce 3rd party reliance in Nagpur.
-            """)
-
-        st.divider()
-        
-        # --- SECTION 3: 2026 KPI FRAMEWORK ---
-        st.subheader("📊 Monitoring Framework for Next Peak")
         kpi_table = pd.DataFrame({
             "Metric": ["Perfect Order Rate", "RTO Recovery Cost", "Resolution Lead Time", "Partner SLA Compliance"],
             "Target": ["> 92%", "< ₹120 / Order", "< 24 Hours", "> 98%"],
@@ -347,4 +292,5 @@ elif page == "Funnel & Strategic Roadmap":
         st.table(kpi_table)
 
         st.divider()
+        st.image("https://images.unsplash.com/photo-1494412574737-59a72127818c?auto=format&fit=crop&q=80&w=1000", caption="Scale & Strategy")
         st.success("Analysis Storyboard Complete. Seashells Logistics is ready for a stabilized Q4 2026!")
