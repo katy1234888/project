@@ -293,7 +293,7 @@ elif page == "Funnel & Strategic Roadmap":
 
 # --- PAGE 6: FUNNEL & STRATEGIC ROADMAP ---
 elif page == "Funnel & Strategic Roadmap":
-    st.header("🎯 Service Funnel & Strategy 2026")
+                 st.header("🎯 Service Funnel & Strategy 2026")
     
     if not st.session_state['datasets']:
         st.warning("Please upload datasets to calculate the strategic funnel.")
