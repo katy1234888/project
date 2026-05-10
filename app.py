@@ -278,7 +278,6 @@ elif page == "Funnel & Strategic Roadmap":
 - **API Real-time Sync:** Upgrade courier integrations for millisecond status updates.
             """)
             
-            st.image("https://images.unsplash.com/photo-1566576721346-d4a3b4eaad5b?auto=format&fit=crop&q=80&w=600", caption="Fleet Management")
 
         st.divider()
         
@@ -292,5 +291,4 @@ elif page == "Funnel & Strategic Roadmap":
         st.table(kpi_table)
 
         st.divider()
-        st.image("https://images.unsplash.com/photo-1494412574737-59a72127818c?auto=format&fit=crop&q=80&w=1000", caption="Scale & Strategy")
         st.success("Analysis Storyboard Complete. Seashells Logistics is ready for a stabilized Q4 2026!")
